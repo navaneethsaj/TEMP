@@ -32,6 +32,7 @@ def helperThread(c,addr,count):
         s.close()
         return
     data = np.frombuffer(data, dtype='uint8')
+    data = cv2.imdecode(data, cv2.IMREAD_COLOR)
     data = np.reshape(data, (480,640,3))
     cv2.imwrite(os.path.join('C:\\Users\\Navaneeth\\Desktop\\dummy\\data',str(count)+'.jpg'), data)
     # print(time.time())
@@ -64,6 +65,6 @@ while True:
 for x in activeThreads:
     x.join()
 
-print('Time Taken ', time.time() - starttime)
+print('Time Taken ', time.time() - starttime, '(s)')
 s.close()               
 
