@@ -8,10 +8,10 @@ import threading
 from sys import getsizeof
 
 def sendimage(data): 
+    global host
+    global port
     global comp_size 
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)        
-    host = '192.168.43.188'#socket.gethostname() 
-    port = 12345               
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)               
     s.connect((host, port)) 
     is_success, im_buf_arr = cv2.imencode(".jpg", data)
     comp_size += getsizeof(im_buf_arr)
@@ -21,13 +21,15 @@ def sendimage(data):
 
 
 def stop():
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)        
-    host = '192.168.43.188'#socket.gethostname() 
-    port = 12345               
+    global port
+    global host
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)       
     s.connect((host, port)) 
     s.send(b'STOPSTOPSTOP')
     s.close()
 
+host = input('Enter Host IP (or use default) : ') or '172.18.108.214'
+port = 12345  
 
 #FROM HERE
 cam = cv2.VideoCapture(0)
@@ -52,7 +54,7 @@ while count>0:
         break
     count-=1
     totsize += data.nbytes
-    time.sleep(.1)
+    time.sleep(.05)
 
 
 for x in activeThreads:
