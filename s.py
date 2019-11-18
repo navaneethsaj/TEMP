@@ -7,6 +7,8 @@ import os
 import time
 import threading
 
+started = False
+
 def recvall(c):
     data = b''
     count = 0
@@ -19,35 +21,82 @@ def recvall(c):
             # print('image received')
             break
         if chunk == b'STOPSTOPSTOP':
-            return 'STOP'
+            return 'STOP', str(time.time())
         data += chunk
     # print('chunks = '+str(count))
-    return data
+    i = 1
+    while chr(data[-i]) != "T" and  chr(data[-i+1]) != "S" and chr(data[-i+2]) != "=":
+        i+=1
+    # print(type(data[-i+3:]))
+    return data[:-i], str(data[-i+3:], 'utf8')
 
+def stream_to_ui(data, ui_host, ui_port):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)       
+    s.connect((ui_host, ui_port)) 
+    if data == None:
+        s.send(b'STOPSTOPSTOP')    
+    else:
+        s.send(data)
+    s.close()
 
 def helperThread(c,addr,count):
-    data = recvall(c) 
+    global ui_host
+    global ui_port
+    global started
+    
+
+    data, timestamp = recvall(c) 
     if data == 'STOP':
         global s
         s.close()
+        stream_to_ui(None, ui_host, ui_port)
+        return
+
+    
+    stream_to_ui(data, ui_host, ui_port)
+
+    if not started:
         return
     data = np.frombuffer(data, dtype='uint8')
     data = cv2.imdecode(data, cv2.IMREAD_COLOR)
     data = np.reshape(data, (480,640,3))
-    cv2.imwrite(os.path.join('C:\\Users\\Navaneeth\\Desktop\\dummy\\data',str(count)+'.jpg'), data)
+    cv2.imwrite(os.path.join('C:\\Users\\Navaneeth\\Desktop\\dummy\\data', str(timestamp)+'.jpg'), data)
     # print(time.time())
+
+def start_stop_recording():
+    global started
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)         
+    host = socket.gethostname()
+    host = socket.gethostbyname(host)
+    port = 11111
+    s.bind((host, port))      
+    s.listen(5)
+    print("listening for start stop", (host, port))
+    while True:
+        try:
+            c, addr = s.accept()
+            started = not started
+            print("started recording = ",started)
+        except OSError:
+            pass
+
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)         
 host = socket.gethostname()
 host = socket.gethostbyname(host)
-port = 12345                
-s.bind((host, port))      
-print((host, port))  
-s.listen(5)          
-
+port = 12345                     
+print('my device info ',(host, port))  
+ui_host = input('Enter IP of UI(or use default 192.168.43.188) : ') or '192.168.43.188'
+ui_port = 4096
+s.bind((host, port)) 
+s.listen(5)    
+input("continue?....")
+t1 = threading.Thread(target=start_stop_recording, args=())
+t1.start()
 starttime = 0
 count = 1
 activeThreads = []
+print('listening for stream from camera ',(host, port))  
 while True:
     try:
         c, addr = s.accept()
@@ -64,7 +113,9 @@ while True:
     
 for x in activeThreads:
     x.join()
-
-print('Time Taken ', time.time() - starttime, '(s)')
+end = time.time()
+print('Time Taken ', end - starttime, '(s)')
+print('start time : ' ,starttime)    
+print('end time : ' ,end)
 s.close()               
 
